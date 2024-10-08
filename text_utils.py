@@ -1,5 +1,5 @@
 #coding:utf-8
-import os
+# import os
 import os.path as osp
 import pandas as pd
 
@@ -14,7 +14,7 @@ class TextCleaner:
             try:
                 indexes.append(self.word_index_dictionary[char])
             except KeyError:
-                print(char)
+                print(f'[!] Character  {char} not defined!\n    Utterance: {text}')
         return indexes
 
     def load_dictionary(self, path):

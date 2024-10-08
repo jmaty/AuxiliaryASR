@@ -1,25 +1,25 @@
 #coding: utf-8
 
-import os
+import logging
+# import os
 import os.path as osp
-import time
 import random
-import numpy as np
-import random
-import soundfile as sf
+# import time
 
+import numpy as np
+import soundfile as sf
 import torch
-from torch import nn
 import torch.nn.functional as F
 import torchaudio
+# from g2p_en import G2p
+# from torch import nn
 from torch.utils.data import DataLoader
 
-from g2p_en import G2p
+from text_utils import TextCleaner
 
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-from text_utils import TextCleaner
+
 np.random.seed(1)
 random.seed(1)
 DEFAULT_DICT_PATH = osp.join(osp.dirname(__file__), 'word_index_dict.txt')
@@ -42,8 +42,8 @@ class MelDataset(torch.utils.data.Dataset):
                  sr=24000
                 ):
 
-        spect_params = SPECT_PARAMS
-        mel_params = MEL_PARAMS
+        # spect_params = SPECT_PARAMS
+        # mel_params = MEL_PARAMS
 
         _data_list = [l[:-1].split('|') for l in data_list]
         self.data_list = [data if len(data) == 3 else (*data, 0) for data in _data_list]
@@ -52,15 +52,15 @@ class MelDataset(torch.utils.data.Dataset):
 
         self.to_melspec = torchaudio.transforms.MelSpectrogram(**MEL_PARAMS)
         self.mean, self.std = -4, 4
-        
-        self.g2p = G2p()
+
+        # self.g2p = G2p()
 
     def __len__(self):
         return len(self.data_list)
 
     def __getitem__(self, idx):
         data = self.data_list[idx]
-        wave, text_tensor, speaker_id = self._load_tensor(data)
+        wave, text_tensor, _ = self._load_tensor(data)
         wave_tensor = torch.from_numpy(wave).float()
         mel_tensor = self.to_melspec(wave_tensor)
 
@@ -79,22 +79,22 @@ class MelDataset(torch.utils.data.Dataset):
     def _load_tensor(self, data):
         wave_path, text, speaker_id = data
         speaker_id = int(speaker_id)
-        wave, sr = sf.read(wave_path)
+        wave, _ = sf.read(wave_path)
 
-        # phonemize the text
-        ps = self.g2p(text.replace('-', ' '))
-        if "'" in ps:
-            ps.remove("'")
+        # # phonemize the text
+        # ps = self.g2p(text.replace('-', ' '))
+        # if "'" in ps:
+        #     ps.remove("'")
+        # Assume phonetic sentence at the input => no need to phonemize
+        ps = text
         text = self.text_cleaner(ps)
         blank_index = self.text_cleaner.word_index_dictionary[" "]
         text.insert(0, blank_index) # add a blank at the beginning (silence)
         text.append(blank_index) # add a blank at the end (silence)
-        
+
         text = torch.LongTensor(text)
 
         return wave, text, speaker_id
-
-
 
 
 class Collater(object):
@@ -132,7 +132,7 @@ class Collater(object):
             input_lengths[bid] = text_size
             output_lengths[bid] = mel_size
             paths[bid] = path
-            assert(text_size < (mel_size//2))
+            assert text_size < (mel_size//2)
 
         if self.return_wave:
             waves = [b[0] for b in batch]
@@ -158,6 +158,6 @@ def build_dataloader(path_list,
                              num_workers=num_workers,
                              drop_last=(not validation),
                              collate_fn=collate_fn,
-                             pin_memory=(device != 'cpu'))
+                             pin_memory= device != 'cpu')
 
     return data_loader
