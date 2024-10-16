@@ -33,7 +33,7 @@ def main(config_path):
     log_dir = config['log_dir']
     if not osp.exists(log_dir):
         os.mkdir(log_dir)
-    shutil.copy(config_path, osp.join(log_dir, osp.basename(config_path)))
+    shutil.copy(args.config_path, osp.join(log_dir, osp.basename(args.config_path)))
 
     writer = SummaryWriter(log_dir + "/tensorboard")
 
