@@ -3,8 +3,8 @@ import os
 import os.path as osp
 import shutil
 from logging import StreamHandler
+import argparse
 
-import click
 import torch
 import yaml
 from torch.utils.tensorboard import SummaryWriter
@@ -23,10 +23,13 @@ logger.addHandler(handler)
 
 torch.backends.cudnn.benchmark = True
 
-@click.command()
-@click.option('-p', '--config_path', default='./Configs/config.yml', type=str)
+
 def main(config_path):
-    config = yaml.safe_load(open(config_path, encoding='utf-8'))
+    parser = argparse.ArgumentParser(description="Auxiliary ASR training")
+    parser.add_argument('config_path', type=str, help='path to config')
+    args = parser.parse_args()
+
+    config = yaml.safe_load(open(args.config_path, encoding='utf-8'))
     log_dir = config['log_dir']
     if not osp.exists(log_dir):
         os.mkdir(log_dir)
