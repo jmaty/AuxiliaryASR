@@ -24,8 +24,9 @@ logger.addHandler(handler)
 torch.backends.cudnn.benchmark = True
 
 
-def main(config_path):
+def main():
     parser = argparse.ArgumentParser(description="Auxiliary ASR training")
+    parser.add_argument('--num_workers', type=int, default=1, help='number of workers')
     parser.add_argument('config_path', type=str, help='path to config')
     args = parser.parse_args()
 
@@ -49,13 +50,13 @@ def main(config_path):
     save_freq = config.get('save_freq', 20)
     train_path = config.get('train_data', None)
     val_path = config.get('val_data', None)
-    num_workers = config.get('num_workers', 1)
+    show_progress = config.get('show_progress', False)
 
     train_list, val_list = get_data_path_list(train_path, val_path)
     train_dataloader = build_dataloader(
         train_list,
         batch_size=batch_size,
-        num_workers=num_workers,
+        num_workers=args.num_workers,
         dataset_config=config.get('dataset_params', {}),
         device=device
     )
@@ -64,7 +65,7 @@ def main(config_path):
         val_list,
         batch_size=batch_size,
         validation=True,
-        num_workers=num_workers,
+        num_workers=args.num_workers,
         device=device,
         dataset_config=config.get('dataset_params', {})
     )
@@ -113,8 +114,8 @@ def main(config_path):
         )
 
     for epoch in range(1, epochs+1):
-        train_results = trainer._train_epoch()
-        eval_results = trainer._eval_epoch()
+        train_results = trainer.train_epoch(show_progress=show_progress)
+        eval_results = trainer.eval_epoch(show_progress=show_progress)
         results = train_results.copy()
         results.update(eval_results)
         logger.info('--- epoch %d ---', epoch)
@@ -126,9 +127,9 @@ def main(config_path):
                 for v in value:
                     writer.add_figure('eval_attn', plot_image(v), epoch)
         if (epoch % save_freq) == 0:
-            trainer.save_checkpoint(osp.join(log_dir, f'epoch_{epoch:05d}' % epoch))
+            trainer.save_checkpoint(osp.join(log_dir, f'epoch_{epoch:05d}'))
 
     return 0
 
 if __name__=="__main__":
-    main(None)
+    main()

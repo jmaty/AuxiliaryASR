@@ -6,8 +6,9 @@ batch_size: 256
 pretrained_model: ""
 train_data: "data/train_SPT-MGW.processed.csv"
 val_data: "data/val_SPT-MGW.processed.csv"
+show_progress: false
 
-preprocess_parasm:
+preprocess_params:
   sr: 24000
   spect_params:
     n_fft: 2048

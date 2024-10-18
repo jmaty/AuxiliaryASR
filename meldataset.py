@@ -141,7 +141,6 @@ class Collater(object):
         return texts, input_lengths, mels, output_lengths
 
 
-
 def build_dataloader(path_list,
                      validation=False,
                      batch_size=4,
@@ -158,6 +157,6 @@ def build_dataloader(path_list,
                              num_workers=num_workers,
                              drop_last=(not validation),
                              collate_fn=collate_fn,
-                             pin_memory= device != 'cpu')
+                             pin_memory=device != 'cpu')
 
     return data_loader

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import logging
 import os
 import os.path as osp
 import sys
@@ -8,17 +9,17 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-from torch import nn
 from PIL import Image
+from torch import nn
 from tqdm import tqdm
 
 from utils import calc_wer
 
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 from utils import *
+
 
 class Trainer(object):
     def __init__(self,
@@ -153,7 +154,7 @@ class Trainer(object):
 
     def run(self, batch):
         self.optimizer.zero_grad()
-        batch = [b.to(self.device) for b in batch]
+        batch = [b.to(self.device, non_blocking=True) for b in batch]
         text_input, text_input_length, mel_input, mel_input_length = batch
         mel_input_length = mel_input_length // (2 ** self.model.n_down)
         future_mask = self.model.get_future_mask(
@@ -180,10 +181,10 @@ class Trainer(object):
                 'ctc': loss_ctc.item(),
                 's2s': loss_s2s.item()}
 
-    def _train_epoch(self):
+    def train_epoch(self, show_progress=False):
         train_losses = defaultdict(list)
         self.model.train()
-        for train_steps_per_epoch, batch in enumerate(tqdm(self.train_dataloader, desc="[train]"), 1):
+        for train_steps_per_epoch, batch in enumerate(tqdm(self.train_dataloader, desc="[train]", disable=not show_progress), 1):
             losses = self.run(batch)
             for key, value in losses.items():
                 train_losses["train/%s" % key].append(value)
@@ -193,12 +194,12 @@ class Trainer(object):
         return train_losses
 
     @torch.no_grad()
-    def _eval_epoch(self):
+    def eval_epoch(self, show_progress=False):
         self.model.eval()
         eval_losses = defaultdict(list)
         eval_images = defaultdict(list)
-        for eval_steps_per_epoch, batch in enumerate(tqdm(self.val_dataloader, desc="[eval]"), 1):
-            batch = [b.to(self.device) for b in batch]
+        for eval_steps_per_epoch, batch in enumerate(tqdm(self.val_dataloader, desc="[eval]", disable=not show_progress), 1):
+            batch = [b.to(self.device, non_blocking=True) for b in batch]
             text_input, text_input_length, mel_input, mel_input_length = batch
             mel_input_length = mel_input_length // (2 ** self.model.n_down)
             future_mask = self.model.get_future_mask(
@@ -239,3 +240,4 @@ class Trainer(object):
         eval_losses = {key: np.mean(value) for key, value in eval_losses.items()}
         eval_losses.update(eval_images)
         return eval_losses
+    
