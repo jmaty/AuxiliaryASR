@@ -1,11 +1,11 @@
 log_dir: "checkpoints"
-save_freq: 10 # 10
+save_freq: 1 # 10
 device: "cuda"
-epochs: 500
+epochs: 200
 batch_size: 256
 pretrained_model: ""
-train_data: "data/train.processed.csv"
-val_data: "data/val.processed.csv"
+train_data: "data/train_SPT-MGW.processed.csv"
+val_data: "data/val_SPT-MGW.processed.csv"
 show_progress: false
 
 preprocess_params:
