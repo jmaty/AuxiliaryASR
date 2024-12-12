@@ -4,22 +4,28 @@ import sys
 import time
 from collections import defaultdict
 
+import jiwer
 import matplotlib
+import matplotlib.pylab as plt
 import numpy as np
 import soundfile as sf
 import torch
 from torch import nn
-import jiwer
 
-import matplotlib.pylab as plt
 
-def calc_wer(target, pred, ignore_indexes=[0]):
-    target_chars = drop_duplicated(list(filter(lambda x: x not in ignore_indexes, map(str, list(target)))))
-    pred_chars = drop_duplicated(list(filter(lambda x: x not in ignore_indexes, map(str, list(pred)))))
-    target_str = ' '.join(target_chars)
-    pred_str = ' '.join(pred_chars)
+def calc_wer(target, pred, ignore_indexes=None):
+    ignore_indexes = ignore_indexes or [0]
+    target_chars = drop_duplicated(
+        list(filter(lambda x: x not in ignore_indexes, map(str, list(target))))
+    )
+    pred_chars = drop_duplicated(
+        list(filter(lambda x: x not in ignore_indexes, map(str, list(pred))))
+    )
+    target_str = " ".join(target_chars)
+    pred_str = " ".join(pred_chars)
     error = jiwer.wer(target_str, pred_str)
     return error
+
 
 def drop_duplicated(chars):
     ret_chars = [chars[0]]
@@ -28,12 +34,15 @@ def drop_duplicated(chars):
             ret_chars.append(curr)
     return ret_chars
 
-def build_criterion(critic_params={}):
+
+def build_criterion(critic_params=None):
+    critic_params = critic_params or {}
     criterion = {
         "ce": nn.CrossEntropyLoss(ignore_index=-1),
-        "ctc": torch.nn.CTCLoss(**critic_params.get('ctc', {})),
+        "ctc": torch.nn.CTCLoss(**critic_params.get("ctc", {})),
     }
     return criterion
+
 
 def get_data_path_list(train_path=None, val_path=None):
     if train_path is None:
@@ -41,9 +50,9 @@ def get_data_path_list(train_path=None, val_path=None):
     if val_path is None:
         val_path = "Data/val_list.txt"
 
-    with open(train_path, 'r') as f:
+    with open(train_path, "r") as f:
         train_list = f.readlines()
-    with open(val_path, 'r') as f:
+    with open(val_path, "r") as f:
         val_list = f.readlines()
 
     return train_list, val_list
@@ -51,8 +60,7 @@ def get_data_path_list(train_path=None, val_path=None):
 
 def plot_image(image):
     fig, ax = plt.subplots(figsize=(10, 2))
-    im = ax.imshow(image, aspect="auto", origin="lower",
-                   interpolation='none')
+    im = ax.imshow(image, aspect="auto", origin="lower", interpolation="none")
 
     fig.canvas.draw()
     plt.close()

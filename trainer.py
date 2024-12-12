@@ -22,18 +22,20 @@ from utils import *
 
 
 class Trainer(object):
-    def __init__(self,
-                 model=None,
-                 criterion=None,
-                 optimizer=None,
-                 scheduler=None,
-                 config={},
-                 device=torch.device("cpu"),
-                 logger=logger,
-                 train_dataloader=None,
-                 val_dataloader=None,
-                 initial_steps=0,
-                 initial_epochs=0):
+    def __init__(
+        self,
+        model=None,
+        criterion=None,
+        optimizer=None,
+        scheduler=None,
+        config={},
+        device=torch.device("cpu"),
+        logger=logger,
+        train_dataloader=None,
+        val_dataloader=None,
+        initial_steps=0,
+        initial_epochs=0,
+    ):
 
         self.steps = initial_steps
         self.epochs = initial_epochs
@@ -96,7 +98,7 @@ class Trainer(object):
                     val = val.data
 
                 if val.shape != model_states[key].shape:
-                    self.logger.info("%s does not have same shape" % key)
+                    self.logger.info(f"{key} does not have same shape")
                     print(val.shape, model_states[key].shape)
                     if not force_load:
                         continue
@@ -122,15 +124,22 @@ class Trainer(object):
 
     @staticmethod
     def length_to_mask(lengths):
-        mask = torch.arange(lengths.max()).unsqueeze(0).expand(lengths.shape[0], -1).type_as(lengths)
-        mask = torch.gt(mask+1, lengths.unsqueeze(1))
+        mask = (
+            torch.arange(lengths.max()).unsqueeze(0).expand(lengths.shape[0], -1).type_as(lengths)
+        )
+        mask = torch.gt(mask + 1, lengths.unsqueeze(1))
         return mask
 
     def _get_lr(self):
         for param_group in self.optimizer.param_groups:
-            lr = param_group['lr']
+            lr = param_group["lr"]
             break
         return lr
+
+    # # Better solution:
+    # def _get_lr(self):
+    # # Returns the learning rate from the first parameter group of the optimizer
+    # return self.optimizer.param_groups[0]["lr"]
 
     @staticmethod
     def get_image(arrs):
@@ -144,7 +153,7 @@ class Trainer(object):
             height += uint_arr.shape[0]
             width = max(width, uint_arr.shape[1])
 
-        palette = Image.new('L', (width, height))
+        palette = Image.new("L", (width, height))
         curr_heigth = 0
         for pil_image in pil_images:
             palette.paste(pil_image, (0, curr_heigth))
@@ -156,20 +165,22 @@ class Trainer(object):
         self.optimizer.zero_grad()
         batch = [b.to(self.device, non_blocking=True) for b in batch]
         text_input, text_input_length, mel_input, mel_input_length = batch
-        mel_input_length = mel_input_length // (2 ** self.model.n_down)
+        mel_input_length = mel_input_length // (2**self.model.n_down)
         # future_mask = self.model.get_future_mask(
         #     mel_input.size(2)//(2**self.model.n_down), unmask_future_steps=0).to(self.device)
         mel_mask = self.model.length_to_mask(mel_input_length)
         # text_mask = self.model.length_to_mask(text_input_length)
         ppgs, s2s_pred, _ = self.model(
-            mel_input, src_key_padding_mask=mel_mask, text_input=text_input)
+            mel_input, src_key_padding_mask=mel_mask, text_input=text_input
+        )
 
-        loss_ctc = self.criterion['ctc'](ppgs.log_softmax(dim=2).transpose(0, 1),
-                                      text_input, mel_input_length, text_input_length)
+        loss_ctc = self.criterion["ctc"](
+            ppgs.log_softmax(dim=2).transpose(0, 1), text_input, mel_input_length, text_input_length
+        )
 
         loss_s2s = 0
         for _s2s_pred, _text_input, _text_length in zip(s2s_pred, text_input, text_input_length):
-            loss_s2s += self.criterion['ce'](_s2s_pred[:_text_length], _text_input[:_text_length])
+            loss_s2s += self.criterion["ce"](_s2s_pred[:_text_length], _text_input[:_text_length])
         loss_s2s /= text_input.size(0)
 
         loss = loss_ctc + loss_s2s
@@ -177,20 +188,20 @@ class Trainer(object):
         torch.nn.utils.clip_grad_value_(self.model.parameters(), 5)
         self.optimizer.step()
         self.scheduler.step()
-        return {'loss': loss.item(),
-                'ctc': loss_ctc.item(),
-                's2s': loss_s2s.item()}
+        return {"loss": loss.item(), "ctc": loss_ctc.item(), "s2s": loss_s2s.item()}
 
     def train_epoch(self, show_progress=False):
         train_losses = defaultdict(list)
         self.model.train()
-        for _, batch in enumerate(tqdm(self.train_dataloader, desc="[train]", disable=not show_progress), 1):
+        for _, batch in enumerate(
+            tqdm(self.train_dataloader, desc="[train]", disable=not show_progress), 1
+        ):
             losses = self.run(batch)
             for key, value in losses.items():
                 train_losses[f"train/{key}"].append(value)
 
         train_losses = {key: np.mean(value) for key, value in train_losses.items()}
-        train_losses['train/learning_rate'] = self._get_lr()
+        train_losses["train/learning_rate"] = self._get_lr()
         return train_losses
 
     @torch.no_grad()
@@ -198,23 +209,31 @@ class Trainer(object):
         self.model.eval()
         eval_losses = defaultdict(list)
         eval_images = defaultdict(list)
-        for eval_steps_per_epoch, batch in enumerate(tqdm(self.val_dataloader, desc="[eval]", disable=not show_progress), 1):
+        for eval_steps_per_epoch, batch in enumerate(
+            tqdm(self.val_dataloader, desc="[eval]", disable=not show_progress), 1
+        ):
             batch = [b.to(self.device, non_blocking=True) for b in batch]
             text_input, text_input_length, mel_input, mel_input_length = batch
-            mel_input_length = mel_input_length // (2 ** self.model.n_down)
+            mel_input_length = mel_input_length // (2**self.model.n_down)
             # future_mask = self.model.get_future_mask(
             #     mel_input.size(2)//(2**self.model.n_down), unmask_future_steps=0).to(self.device)
             mel_mask = self.model.length_to_mask(mel_input_length)
             # text_mask = self.model.length_to_mask(text_input_length)
             ppgs, s2s_pred, s2s_attn = self.model(
-                mel_input, src_key_padding_mask=mel_mask, text_input=text_input)
-            loss_ctc = self.criterion['ctc'](ppgs.log_softmax(dim=2).transpose(0, 1),
-                                          text_input, mel_input_length, text_input_length)
+                mel_input, src_key_padding_mask=mel_mask, text_input=text_input
+            )
+            loss_ctc = self.criterion["ctc"](
+                ppgs.log_softmax(dim=2).transpose(0, 1),
+                text_input,
+                mel_input_length,
+                text_input_length,
+            )
             loss_s2s = 0
-            for _s2s_pred, _text_input, _text_length in zip(s2s_pred, text_input, text_input_length):
-                loss_s2s += self.criterion['ce'](
-                    _s2s_pred[:_text_length],
-                    _text_input[:_text_length]
+            for _s2s_pred, _text_input, _text_length in zip(
+                s2s_pred, text_input, text_input_length
+            ):
+                loss_s2s += self.criterion["ce"](
+                    _s2s_pred[:_text_length], _text_input[:_text_length]
                 )
             loss_s2s /= text_input.size(0)
             loss = loss_ctc + loss_s2s
@@ -224,27 +243,28 @@ class Trainer(object):
             eval_losses["eval/loss"].append(loss.item())
 
             _, amax_ppgs = torch.max(ppgs, dim=2)
-            wers = [calc_wer(target[:text_length],
-                             pred[:mel_length],
-                             ignore_indexes=list(range(5))) \
-                    for target, pred, text_length, mel_length in zip(
-                            text_input.cpu(),
-                            amax_ppgs.cpu(),
-                            text_input_length.cpu(),
-                            mel_input_length.cpu())]
+            wers = [
+                calc_wer(target[:text_length], pred[:mel_length], ignore_indexes=list(range(5)))
+                for target, pred, text_length, mel_length in zip(
+                    text_input.cpu(),
+                    amax_ppgs.cpu(),
+                    text_input_length.cpu(),
+                    mel_input_length.cpu(),
+                )
+            ]
             eval_losses["eval/wer"].extend(wers)
 
             _, amax_s2s = torch.max(s2s_pred, dim=2)
-            acc = [torch.eq(target[:length], pred[:length]).float().mean().item() \
-                   for target, pred, length in zip(
-                    text_input.cpu(),
-                    amax_s2s.cpu(),
-                    text_input_length.cpu())]
+            acc = [
+                torch.eq(target[:length], pred[:length]).float().mean().item()
+                for target, pred, length in zip(
+                    text_input.cpu(), amax_s2s.cpu(), text_input_length.cpu()
+                )
+            ]
             eval_losses["eval/acc"].extend(acc)
 
             if eval_steps_per_epoch <= 2:
-                eval_images["eval/image"].append(
-                    self.get_image([s2s_attn[0].cpu().numpy()]))
+                eval_images["eval/image"].append(self.get_image([s2s_attn[0].cpu().numpy()]))
 
         eval_losses = {key: np.mean(value) for key, value in eval_losses.items()}
         eval_losses.update(eval_images)
