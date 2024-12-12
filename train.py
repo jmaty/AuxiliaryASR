@@ -41,9 +41,7 @@ def main():
     # write logs
     file_handler = logging.FileHandler(osp.join(log_dir, "train.log"))
     file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(
-        logging.Formatter("%(levelname)s:%(asctime)s: %(message)s")
-    )
+    file_handler.setFormatter(logging.Formatter("%(levelname)s:%(asctime)s: %(message)s"))
     logger.addHandler(file_handler)
 
     batch_size = config.get("batch_size", 10)
