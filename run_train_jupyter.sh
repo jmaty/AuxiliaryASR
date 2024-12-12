@@ -13,9 +13,9 @@ RUNS=1
 HOURS=24
 MODELS=""
 # QSUB ARGUMENTS
-NCPUS=32
+NCPUS=8
 MEM=256gb
-LSCRATCH=100gb
+LSCRATCH=140gb
 
 if [[ "$#" -lt 2 ]]; then
      echo "Usage: run_train_jupyter.sh cfg notebook [specification: iti<0-1> dgx gpu<0-3>] [hours] [runs] [jobid]"
@@ -99,7 +99,7 @@ WALLTIME="-l walltime=$HOURS:00:00"
 
 # Extract name of the experiment
 # EXP=$(grep 'log_dir:' "$CFG" | sed -r 's/log_dir: "Models\/(.+)"/\1/')
-EXP=ASR4styleTTS2
+EXP=ASR4StyleTTS2
 
 # Timestep to differentiate among runs with the same run name
 TIMESTEP=$(date +"%y%m%d_%H%M%S")

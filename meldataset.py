@@ -15,7 +15,7 @@ import torchaudio
 # from torch import nn
 from torch.utils.data import DataLoader
 
-from text_utils import TextCleaner
+from text_utils import TextCleaner, add_spaces_around_punctuation
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -23,11 +23,11 @@ logger.setLevel(logging.DEBUG)
 np.random.seed(1)
 random.seed(1)
 DEFAULT_DICT_PATH = osp.join(osp.dirname(__file__), 'word_index_dict.txt')
-SPECT_PARAMS = {
-    "n_fft": 2048,
-    "win_length": 1200,
-    "hop_length": 300
-}
+# SPECT_PARAMS = {
+#     "n_fft": 2048,
+#     "win_length": 1200,
+#     "hop_length": 300
+# }
 MEL_PARAMS = {
     "n_mels": 80,
     "n_fft": 2048,
@@ -39,21 +39,23 @@ class MelDataset(torch.utils.data.Dataset):
     def __init__(self,
                  data_list,
                  dict_path=DEFAULT_DICT_PATH,
-                 sr=24000
+                 max_text_len=256,
                 ):
 
         # spect_params = SPECT_PARAMS
         # mel_params = MEL_PARAMS
 
-        _data_list = [l[:-1].split('|') for l in data_list]
+        # _data_list = [l[:-1].split('|') for l in data_list]
+        # Remove long utterances
+        _data_list = [parts for l in data_list if len((parts := l[:-1].split('|'))[1]) <= max_text_len]
+        print(f"Reducing input utterances from {len(data_list)} to {len(_data_list)}, ignoring utterances with >{max_text_len} phonemes")
         self.data_list = [data if len(data) == 3 else (*data, 0) for data in _data_list]
+
         self.text_cleaner = TextCleaner(dict_path)
-        self.sr = sr
 
         self.to_melspec = torchaudio.transforms.MelSpectrogram(**MEL_PARAMS)
         self.mean, self.std = -4, 4
 
-        # self.g2p = G2p()
 
     def __len__(self):
         return len(self.data_list)
@@ -85,12 +87,16 @@ class MelDataset(torch.utils.data.Dataset):
         # ps = self.g2p(text.replace('-', ' '))
         # if "'" in ps:
         #     ps.remove("'")
+
         # Assume phonetic sentence at the input => no need to phonemize
-        ps = text
-        text = self.text_cleaner(ps)
-        blank_index = self.text_cleaner.word_index_dictionary[" "]
-        text.insert(0, blank_index) # add a blank at the beginning (silence)
-        text.append(blank_index) # add a blank at the end (silence)
+        # Surround sentence-internal punctuation by spaces to be compatible with
+        # original g2p and PL-BERT and StyleTTS2
+        text = self.text_cleaner(add_spaces_around_punctuation(text))
+        # blank_index = self.text_cleaner.word_index_dictionary[" "]
+        _, blank_index = self.text_cleaner.blank
+        text = [blank_index] + text + [blank_index]  # Add silence (blank) at the beginning and end
+        # text.insert(0, blank_index) # add a blank at the beginning (silence)
+        # text.append(blank_index) # add a blank at the end (silence)
 
         text = torch.LongTensor(text)
 
@@ -146,8 +152,10 @@ def build_dataloader(path_list,
                      batch_size=4,
                      num_workers=1,
                      device='cpu',
-                     collate_config={},
-                     dataset_config={}):
+                     collate_config=None,
+                     dataset_config=None):
+    collate_config = collate_config or {}
+    dataset_config = dataset_config or {}
 
     dataset = MelDataset(path_list, **dataset_config)
     collate_fn = Collater(**collate_config)
@@ -158,5 +166,4 @@ def build_dataloader(path_list,
                              drop_last=(not validation),
                              collate_fn=collate_fn,
                              pin_memory=device != 'cpu')
-
     return data_loader

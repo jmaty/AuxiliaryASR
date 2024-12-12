@@ -64,7 +64,7 @@ def _define_optimizer(params):
     return optimizer, scheduler
 
 def _define_scheduler(optimizer, params):
-    print(params)
+    # print(params)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
         optimizer,
         max_lr=params.get('max_lr', 5e-4),
