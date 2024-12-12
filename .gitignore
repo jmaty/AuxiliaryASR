@@ -13,7 +13,8 @@ monotonic_align/monotonic_align
 ~*
 
 data
-checkpoints
+checkpoints*/
 output_logs
 output_notebooks
 *.wav
+test_checkpoints
