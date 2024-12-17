@@ -1,12 +1,15 @@
 log_dir: "checkpoints"
-save_freq: 10 # 10
+save_freq: 1 # 10
 device: "cuda"
 epochs: 500
-batch_size: 128 # 256
+batch_size: 64 # 256
 pretrained_model: ""
 train_data: "data/train.processed.csv"
 val_data: "data/val.processed.csv"
 show_progress: false
+
+dataset_params:
+  max_text_len: 256
 
 preprocess_params:
   sr: 24000
