@@ -6,8 +6,6 @@ import logging
 import os.path as osp
 import random
 
-# import time
-
 import numpy as np
 import soundfile as sf
 import torch
@@ -19,6 +17,9 @@ import torchaudio
 from torch.utils.data import DataLoader
 
 from text_utils import TextCleaner, add_spaces_around_punctuation
+
+# import time
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
